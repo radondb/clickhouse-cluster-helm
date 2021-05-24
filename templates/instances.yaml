@@ -1,0 +1,152 @@
+# This file is part of the ClickHouse Helm Chart
+#    https://github.com/radondb/clickhouse-cluster-helm
+#
+# Copyright 2021 TCeason <tai_chong@foxmail.com>
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#    http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+{{- range $shardIndex, $shard := .Values.clickhouse.shards }}
+{{- range $replicaIndex, $replica := .replicas }}
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "defaultObjectName" $ }}-s{{ $shardIndex }}-r{{ $replicaIndex }}-configuration
+  labels:
+    {{- include "defaultLabels" $ | nindent 4 }}
+data:
+  macros.xml: |
+    <yandex>
+      <macros>
+        <shard>s{{ $shardIndex }}</shard>
+        <replica>r{{ $replicaIndex }}</replica>
+      </macros>
+    </yandex>
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: {{ include "defaultObjectName" $ }}-s{{ $shardIndex }}-r{{ $replicaIndex }}
+  labels:
+    {{- include "defaultLabels" $ | nindent 4 }}
+spec:
+  replicas: { { .Values.clickhouse.replicas } }
+  podManagementPolicy: { { .Values.clickhouse.podManagementPolicy } }
+  updateStrategy:
+    type: { { .Values.clickhouse.updateStrategy } }
+    { { - if (eq "Recreate" .Values.clickhouse.updateStrategy) } }
+    rollingUpdate: null
+    { { - else if .Values.clickhouse.rollingUpdatePartition } }
+    rollingUpdate:
+      partition: { { .Values.clickhouse.rollingUpdatePartition } }
+    { { - end } }
+  revisionHistoryLimit: 0
+  selector:
+    matchLabels:
+      {{- include "defaultMatchLabels" $ | nindent 6 }}
+      clickhouse/component: clickhouse
+      clickhouse/shard-index: "{{ $shardIndex }}"
+      clickhouse/replica-index: "{{ $replicaIndex }}"
+  template:
+    metadata:
+      labels:
+        {{- include "defaultLabels" $ | nindent 8 }}
+        clickhouse/component: clickhouse
+        clickhouse/shard-index: "{{ $shardIndex }}"
+        clickhouse/replica-index: "{{ $replicaIndex }}"
+      annotations:
+        clickhouse/config-checksum: {{ include (print $.Template.BasePath "/configuration.yaml") $ | sha256sum }}
+    spec:
+      hostname: {{ include "defaultObjectName" $ }}-s{{ $shardIndex }}-r{{ $replicaIndex }}
+      containers:
+        - name: clickhouse
+          image: {{ $.Values.clickhouse.image }}
+          imagePullPolicy: {{ $.Values.clickhouse.imagePullPolicy }}
+          ports:
+            - containerPort: {{ $.Values.clickhouse.ports.native }}
+            - containerPort: {{ $.Values.clickhouse.ports.http }}
+          volumeMounts:
+            - name: common-configuration
+              subPath: config.xml
+              mountPath: /etc/clickhouse-server/config.xml
+            - name: instance-configuration
+              subPath: macros.xml
+              mountPath: /etc/clickhouse-server/config.d/macros.xml
+            - name: data
+              mountPath: /var/lib/clickhouse
+      volumes:
+        - name: common-configuration
+          configMap:
+            name: {{ include "defaultObjectName" $ }}-configuration
+        - name: instance-configuration
+          configMap:
+            name: {{ include "defaultObjectName" $ }}-s{{ $shardIndex }}-r{{ $replicaIndex }}-configuration
+        - name: data
+          persistentVolumeClaim:
+          {{- if $replica.storageType }}{{- if eq $replica.storageType "local" }}
+            claimName: {{ include "defaultObjectName" $ }}-s{{ $shardIndex }}-r{{ $replicaIndex }}-local
+          {{- end }}{{ end }}
+          {{- if $replica.storageType }}{{- if eq $replica.storageType "persistentVolumeClaim" }}
+            claimName: {{ include "defaultObjectName" $ }}-s{{ $shardIndex }}-r{{ $replicaIndex }}
+          {{- end }}{{ end }}
+          {{- if $replica.storageType }}{{- if eq $replica.storageType "existingPersistentVolumeClaim" }}
+            claimName: {{ $replica.existingPersistentVolumeClaimName }}
+          {{- end }}{{ end }}
+      affinity:
+        podAntiAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            - labelSelector:
+                matchLabels:
+                  {{- include "defaultMatchLabels" $ | nindent 18 }}
+                  clickhouse/component: clickhouse
+                  clickhouse/shard-index: "{{ $shardIndex }}"
+              topologyKey: kubernetes.io/hostname
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - podAffinityTerm:
+                labelSelector:
+                  matchLabels:
+                    {{- include "defaultMatchLabels" $ | nindent 20 }}
+                    clickhouse/component: clickhouse
+                    clickhouse/replica-index: "{{ $replicaIndex }}"
+                topologyKey: kubernetes.io/hostname
+              weight: 10
+            - podAffinityTerm:
+                labelSelector:
+                  matchLabels:
+                    {{- include "defaultMatchLabels" $ | nindent 20 }}
+                    clickhouse/component: clickhouse
+                topologyKey: kubernetes.io/hostname
+              weight: 5
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "defaultObjectName" $ }}-s{{ $shardIndex }}-r{{ $replicaIndex }}
+  labels:
+    {{- include "defaultLabels" $ | nindent 4 }}
+    clickhouse/component: clickhouse
+spec:
+  selector:
+    {{- include "defaultMatchLabels" $ | nindent 4 }}
+    clickhouse/shard-index: "{{ $shardIndex }}"
+    clickhouse/replica-index: "{{ $replicaIndex }}"
+    clickhouse/component: clickhouse
+  ports:
+    - name: native
+      protocol: TCP
+      port: {{ $.Values.clickhouse.ports.native }}
+    - name: http
+      protocol: TCP
+      port: {{ $.Values.clickhouse.ports.http }}
+{{- end }}
+{{- end }}
