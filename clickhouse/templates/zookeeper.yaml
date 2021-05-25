@@ -58,6 +58,13 @@ spec:
         - name: zookeeper
           image: {{ $.Values.zookeeper.internal.image }}
           imagePullPolicy: {{ $.Values.zookeeper.internal.imagePullPolicy }}
+          resources:
+            requests:
+              memory: {{ $.Values.zookeeper.internal.resources.memory }}
+              cpu: {{ $.Values.zookeeper.internal.resources.cpu }}
+            limits:
+              memory: {{ $.Values.zookeeper.internal.resources.memory }}
+              cpu: {{ $.Values.zookeeper.internal.resources.cpu }}
           ports:
             - containerPort: 2181
               name: client

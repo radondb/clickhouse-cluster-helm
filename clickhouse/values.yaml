@@ -4,15 +4,9 @@ clickhouse:
   # default cluster name
   clusterName: cluster
 
-  ## StatefulSet controller supports relax its ordering guarantees while preserving its uniqueness and identity guarantees. There are two valid pod management policies: OrderedReady and Parallel
-  ## ref: https://kubernetes.io/docs/tutorials/stateful-application/basic-stateful-set/#pod-management-policy
-  ##
-  podManagementPolicy: Parallel
-
-  ## StatefulSet controller supports automated updates. There are two valid update strategies: RollingUpdate and OnDelete
-  ## ref: https://kubernetes.io/docs/tutorials/stateful-application/basic-stateful-set/#updating-statefulsets
-  ##
-  updateStrategy: RollingUpdate
+  resources:
+    memory: "1Gi"
+    cpu: "0.5"
 
   # User Configuration
   users:
@@ -36,6 +30,11 @@ clickhouse:
     - name: shard0
       replicas:
         - name: shard0-replica0
+        - name: shard0-replica1
+    - name: shard1
+      replicas:
+        - name: shard1-replica0
+        - name: shard1-replica1
 
   # ClickHouse server image configuration
   image: tceason/clickhouse-server:v21.1.3.32-stable
@@ -56,6 +55,13 @@ clickhouse:
   ipv4: true
   ipv6: false
 
+  livenessProbe:
+    initialDelaySeconds: "30"
+    periodSeconds: "30"
+    timeoutSeconds: "5"
+    failureThreshold: "3"
+    successThreshold: "1"
+
 # zookeeper configuration
 zookeeper:
   # internal - start single instance zookeeper with this helm chart (for development purposes)
@@ -66,6 +72,9 @@ zookeeper:
   internal:
     image: zookeeper:3.5
     imagePullPolicy: Always
+    resources:
+      memory: "1Gi"
+      cpu: "0.5"
 
   # configuration for external zookeeper cluster
   external:

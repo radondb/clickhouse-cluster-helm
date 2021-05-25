@@ -3,9 +3,9 @@ entries:
   clickhouse:
   - apiVersion: v2
     appVersion: "20.1"
-    created: "2021-05-24T16:10:02.760246163+08:00"
+    created: "2021-05-25T10:43:23.479267311+08:00"
     description: Helm Chart for deploying a sharded and replicated ClickHouse cluster
-    digest: a6b3babd2098becafa55b54acbde6ae72d5113dc19a655254e0a0d963aef65dc
+    digest: 6a9ff26e23674903b100a79dc3d661b4ca82239d6aff3db1462ef87d5015ff82
     home: https://github.com/radondb/clickhouse-cluster-helm
     icon: https://xenondb.pek3b.qingstor.com/icons/radondb.svg
     keywords:
@@ -21,4 +21,4 @@ entries:
     urls:
     - https://radondb.github.io/clickhouse-cluster-helm/clickhouse-0.1.0.tgz
     version: 0.1.0
-generated: "2021-05-24T16:10:02.759026872+08:00"
+generated: "2021-05-25T10:43:23.478585423+08:00"

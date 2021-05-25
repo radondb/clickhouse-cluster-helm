@@ -35,6 +35,7 @@ data:
         <console>1</console>
       </logger>
 
+      <default_on_cluster_name>{{ .Values.clickhouse.clusterName }}</default_on_cluster_name>
       <!-- <display_name>clickhouse-cluster</display_name> -->
       <http_port>{{ .Values.clickhouse.ports.http }}</http_port>
       <tcp_port>{{ .Values.clickhouse.ports.native }}</tcp_port>
@@ -123,3 +124,4 @@ data:
         {{- end }}
       </zookeeper>
     </yandex>
+# For shard configuration see https://clickhouse.tech/docs/en/operations/table_engines/distributed/

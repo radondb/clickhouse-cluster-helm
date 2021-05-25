@@ -15,8 +15,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-{{- range $shardIndex, $shard := .Values.clickhouse.shards -}}
-{{- range $replicaIndex, $replica := .replicas -}}
+{{- range $shardIndex, $shard := .Values.clickhouse.shards }}
+{{- range $replicaIndex, $replica := .replicas }}
 ---
 apiVersion: v1
 kind: ConfigMap
@@ -65,6 +65,21 @@ spec:
         - name: clickhouse
           image: {{ $.Values.clickhouse.image }}
           imagePullPolicy: {{ $.Values.clickhouse.imagePullPolicy }}
+          livenessProbe:
+            tcpSocket:
+              port: {{ $.Values.clickhouse.ports.native }}
+            initialDelaySeconds: {{ $.Values.clickhouse.livenessProbe.initialDelaySeconds }}
+            periodSeconds: {{ $.Values.clickhouse.livenessProbe.periodSeconds }}
+            timeoutSeconds: {{ $.Values.clickhouse.livenessProbe.timeoutSeconds }}
+            failureThreshold: {{ $.Values.clickhouse.livenessProbe.failureThreshold }}
+            successThreshold: {{ $.Values.clickhouse.livenessProbe.successThreshold }}
+          resources:
+            requests:
+              memory: {{ $.Values.clickhouse.resources.memory }}
+              cpu: {{ $.Values.clickhouse.resources.cpu }}
+            limits:
+              memory: {{ $.Values.clickhouse.resources.memory }}
+              cpu: {{ $.Values.clickhouse.resources.cpu }}
           ports:
             - containerPort: {{ $.Values.clickhouse.ports.native }}
             - containerPort: {{ $.Values.clickhouse.ports.http }}
