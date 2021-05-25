@@ -1,4 +1,4 @@
-# Helm Chart for ClickHouse
+# Community Helm Chart for ClickHouse
 
 [ClickHouse](https://clickhouse.tech/) is an open source column-oriented database management system capable of real time generation of analytical data reports using 
 SQL queries.
@@ -6,24 +6,10 @@ This repository provides a helm chart for easily setting up a ClickHouse cluster
 
 The development of this helm was sponsored and supported by [extrument.com](https://extrument.com/).
 
+## QuickStart
 
-## Installation
-
-### Add Helm Repository
-
-```
-helm repo add radonck https://radondb.github.io/clickhouse-cluster-helm/
-helm repo update
-```
-
-### Install to Kubernetes
-
-```
-helm install clickhouse radonck/clickhouse
-```
-
-For a list of all configurable options and variables see [values.yaml](./clickhouse/values.yaml).
-
+- [Deploy RadonDB ClickHouse on Kubernetes](Document/Kubernetes/deploy_radondb-ClickHouse_on_kubernetes.md)
+- [Deploy RadonDB ClickHouse through Appstore of KubeSphere](Document/KubeSphere/deploy_radondb-ClickHouse_on_kubesphere_appstore.md)
 
 ## License
 

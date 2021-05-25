@@ -4,6 +4,7 @@ clickhouse:
   # default cluster name
   clusterName: cluster
 
+  ## the limit and require of resources
   resources:
     memory: "1Gi"
     cpu: "0.5"
@@ -31,19 +32,15 @@ clickhouse:
       replicas:
         - name: shard0-replica0
         - name: shard0-replica1
-    - name: shard1
-      replicas:
-        - name: shard1-replica0
-        - name: shard1-replica1
 
   # ClickHouse server image configuration
   image: tceason/clickhouse-server:v21.1.3.32-stable
-  imagePullPolicy: Always
+  imagePullPolicy: IfNotPresent
 
   # By default, this helm chart will create a service for getting access to the cluster.
   # Using this configuration it is possible to adjust the service settings.
   service:
-    # Should the service be created by the helm chart?
+    # Default create service by the helm chart.
     enabled: true
 
     # Type of the service. Use ClusterIP for internal access, LoadBalancer for external access.
@@ -61,24 +58,3 @@ clickhouse:
     timeoutSeconds: "5"
     failureThreshold: "3"
     successThreshold: "1"
-
-# zookeeper configuration
-zookeeper:
-  # internal - start single instance zookeeper with this helm chart (for development purposes)
-  # external - use external available zookeeper servers (for production use)
-  mode: internal
-
-  # configuration for internal zookeeper instance
-  internal:
-    image: zookeeper:3.5
-    imagePullPolicy: Always
-    resources:
-      memory: "1Gi"
-      cpu: "0.5"
-
-  # configuration for external zookeeper cluster
-  external:
-    # list of external zookeeper instances
-    instances:
-      - host: zk-1
-        port: 2181

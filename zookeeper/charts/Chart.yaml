@@ -16,16 +16,16 @@
 # limitations under the License.
 
 apiVersion: v2
-name: clickhouse
+name: zookeeper
 version: 0.1.0
-appVersion: "21.1"
+appVersion: "3.6"
 description: Helm Chart for deploying a sharded and replicated ClickHouse cluster
 home: https://github.com/radondb/clickhouse-cluster-helm
 icon: https://xenondb.pek3b.qingstor.com/icons/radondb.svg
 type: application
 kubeVersion:
 keywords:
-  - clickhouse
+  - zookeeper
 
 sources:
   - https://github.com/radondb/clickhouse-cluster-helm

@@ -28,22 +28,20 @@ data:
   macros.xml: |
     <yandex>
       <macros>
-        <shard>s{{ $shardIndex }}</shard>
+        <shard>{{ include "defaultObjectName" $ }}s{{ $shardIndex }}</shard>
         <replica>r{{ $replicaIndex }}</replica>
       </macros>
     </yandex>
 ---
 apiVersion: apps/v1
-kind: Deployment
+kind: StatefulSet
 metadata:
   name: {{ include "defaultObjectName" $ }}-s{{ $shardIndex }}-r{{ $replicaIndex }}
   labels:
     {{- include "defaultLabels" $ | nindent 4 }}
 spec:
   replicas: 1
-  strategy:
-    type: Recreate
-  revisionHistoryLimit: 0
+  serviceName: {{ include "defaultObjectName" $ }}
   selector:
     matchLabels:
       {{- include "defaultMatchLabels" $ | nindent 6 }}
@@ -66,8 +64,11 @@ spec:
           image: {{ $.Values.clickhouse.image }}
           imagePullPolicy: {{ $.Values.clickhouse.imagePullPolicy }}
           livenessProbe:
-            tcpSocket:
-              port: {{ $.Values.clickhouse.ports.native }}
+            exec:
+              command:
+                - bash
+                - -c
+                - "OK=$(/usr/bin/clickhouse client --user={{ (index $.Values.clickhouse.users 0).username }} --password={{ (index $.Values.clickhouse.users 0).password }} --port={{ $.Values.clickhouse.ports.native }} --query='SELECT 1'); if [[ \"$OK\" == \"1\" ]]; then exit 0; else exit 1; fi"
             initialDelaySeconds: {{ $.Values.clickhouse.livenessProbe.initialDelaySeconds }}
             periodSeconds: {{ $.Values.clickhouse.livenessProbe.periodSeconds }}
             timeoutSeconds: {{ $.Values.clickhouse.livenessProbe.timeoutSeconds }}
@@ -90,7 +91,7 @@ spec:
             - name: instance-configuration
               subPath: macros.xml
               mountPath: /etc/clickhouse-server/config.d/macros.xml
-            - name: data
+            - name: ck-datadir
               mountPath: /var/lib/clickhouse
       volumes:
         - name: common-configuration
@@ -99,27 +100,17 @@ spec:
         - name: instance-configuration
           configMap:
             name: {{ include "defaultObjectName" $ }}-s{{ $shardIndex }}-r{{ $replicaIndex }}-configuration
-        - name: data
-          persistentVolumeClaim:
-          {{- if $replica.storageType }}{{- if eq $replica.storageType "local" }}
-            claimName: {{ include "defaultObjectName" $ }}-s{{ $shardIndex }}-r{{ $replicaIndex }}-local
-          {{- end }}{{ end }}
-          {{- if $replica.storageType }}{{- if eq $replica.storageType "persistentVolumeClaim" }}
-            claimName: {{ include "defaultObjectName" $ }}-s{{ $shardIndex }}-r{{ $replicaIndex }}
-          {{- end }}{{ end }}
-          {{- if $replica.storageType }}{{- if eq $replica.storageType "existingPersistentVolumeClaim" }}
-            claimName: {{ $replica.existingPersistentVolumeClaimName }}
-          {{- end }}{{ end }}
       affinity:
         podAntiAffinity:
-          requiredDuringSchedulingIgnoredDuringExecution:
-            - labelSelector:
-                matchLabels:
-                  {{- include "defaultMatchLabels" $ | nindent 18 }}
-                  clickhouse/component: clickhouse
-                  clickhouse/shard-index: "{{ $shardIndex }}"
-              topologyKey: kubernetes.io/hostname
           preferredDuringSchedulingIgnoredDuringExecution:
+            - podAffinityTerm:
+                labelSelector:
+                  matchLabels:
+                    {{- include "defaultMatchLabels" $ | nindent 20 }}
+                    clickhouse/component: clickhouse
+                    clickhouse/shard-index: "{{ $shardIndex }}"
+                topologyKey: kubernetes.io/hostname
+              weight: 20
             - podAffinityTerm:
                 labelSelector:
                   matchLabels:
@@ -135,6 +126,18 @@ spec:
                     clickhouse/component: clickhouse
                 topologyKey: kubernetes.io/hostname
               weight: 5
+      securityContext:
+        runAsUser: 101
+        fsGroup: 101
+  volumeClaimTemplates:
+    - metadata:
+        name: ck-datadir
+      spec:
+        accessModes:
+          - ReadWriteOnce
+        resources:
+          requests:
+            storage: 1Gi
 ---
 apiVersion: v1
 kind: Service

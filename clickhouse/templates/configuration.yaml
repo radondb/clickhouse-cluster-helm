@@ -15,6 +15,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+{{ $namespace := .Release.Namespace }}
+{{ $releasename := .Release.Name }}
+---
 apiVersion: v1
 kind: ConfigMap
 metadata:
@@ -39,6 +42,7 @@ data:
       <!-- <display_name>clickhouse-cluster</display_name> -->
       <http_port>{{ .Values.clickhouse.ports.http }}</http_port>
       <tcp_port>{{ .Values.clickhouse.ports.native }}</tcp_port>
+      <interserver_http_port>9009</interserver_http_port>
 
       <mark_cache_size>5368709120</mark_cache_size>
 
@@ -49,7 +53,7 @@ data:
       </compression>
 
       <distributed_ddl>
-        <path>/clickhouse/task_queue/ddl</path>
+        <path>/clickhouse/{{ include "defaultObjectName" $ }}/task_queue/ddl</path>
       </distributed_ddl>
 
       <remote_servers>
@@ -59,15 +63,54 @@ data:
             <weight>{{ default $shard.weight "1" }}</weight>
             {{- range $replicaIndex, $replica := .replicas }}
             <replica>
-              <host>{{ include "defaultObjectName" $ }}-s{{ $shardIndex }}-r{{ $replicaIndex }}</host>
-              <port>{{ $.Values.clickhouse.ports.native }}</port>
-              <user>{{ (index $.Values.clickhouse.users 0).username }}</user>
-              <password>{{ (index $.Values.clickhouse.users 0).password }}</password>
+              {{- range untilStep 0 1 1 -}}
+                {{ $args := printf "%d" . }}
+                  <host>{{ include "defaultObjectName" $ }}-s{{ $shardIndex }}-r{{ $replicaIndex }}-{{ $args }}.{{ include "defaultObjectName" $ }}.{{ $namespace }}.svc.cluster.local</host>
+                  <port>{{ $.Values.clickhouse.ports.native }}</port>
+                  <user>{{ (index $.Values.clickhouse.users 0).username }}</user>
+                  <password>{{ (index $.Values.clickhouse.users 0).password }}</password>
+              {{- end }}
             </replica>
             {{- end }}
           </shard>
           {{- end }}
         </{{ $.Values.clickhouse.clusterName }}>
+        <logical_consistency_cluster>
+          {{- range $shardIndex, $shard := .Values.clickhouse.shards }}
+          <shard>
+            <weight>{{ default $shard.weight "1" }}</weight>
+            {{- range $replicaIndex, $replica := .replicas }}
+            <replica>
+              {{- range untilStep 0 1 1 -}}
+                {{ $args := printf "%d" . }}
+                  <host>{{ include "defaultObjectName" $ }}-s{{ $shardIndex }}-r{{ $replicaIndex }}-{{ $args }}.{{ include "defaultObjectName" $ }}.{{ $namespace }}.svc.cluster.local</host>
+                  <port>{{ $.Values.clickhouse.ports.native }}</port>
+                  <user>{{ (index $.Values.clickhouse.users 0).username }}</user>
+                  <password>{{ (index $.Values.clickhouse.users 0).password }}</password>
+              {{- end }}
+            </replica>
+            {{- end }}
+          </shard>
+          {{- end }}
+        </logical_consistency_cluster>
+        <physical_consistency_cluster>
+          {{- range $shardIndex, $shard := .Values.clickhouse.shards }}
+          <shard>
+            <internal_replication>true</internal_replication>
+            {{- range $replicaIndex, $replica := .replicas }}
+            <replica>
+              {{- range untilStep 0 1 1 -}}
+                {{ $args := printf "%d" . }}
+                  <host>{{ include "defaultObjectName" $ }}-s{{ $shardIndex }}-r{{ $replicaIndex }}-{{ $args }}.{{ include "defaultObjectName" $ }}.{{ $namespace }}.svc.cluster.local</host>
+                  <port>{{ $.Values.clickhouse.ports.native }}</port>
+                  <user>{{ (index $.Values.clickhouse.users 0).username }}</user>
+                  <password>{{ (index $.Values.clickhouse.users 0).password }}</password>
+              {{- end }}
+            </replica>
+            {{- end }}
+          </shard>
+          {{- end }}
+        </physical_consistency_cluster>
       </remote_servers>
 
       <profiles>
@@ -108,20 +151,10 @@ data:
       </quotas>
 
       <zookeeper>
-        {{- if eq .Values.zookeeper.mode "internal" }}
         <node>
-          <host>{{ include "defaultObjectName" $ }}-zookeeper</host>
+          <host>zk-server-{{ $releasename }}</host>
           <port>2181</port>
         </node>
-        {{- end }}
-        {{- if eq .Values.zookeeper.mode "external" }}
-        {{- range $index, $instance := $.Values.zookeeper.external.instances }}
-        <node>
-          <host>{{ $instance.host }}</host>
-          <port>{{ default $instance.port "2181" }}</port>
-        </node>
-        {{- end }}
-        {{- end }}
       </zookeeper>
     </yandex>
 # For shard configuration see https://clickhouse.tech/docs/en/operations/table_engines/distributed/
