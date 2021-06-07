@@ -1,73 +1,72 @@
 Contents
 =================
 
-- [Deploy Radondb ClickHouse On kubernetes](#deploy-radondb-clickhouse-on-kubernetes)
-  - [Introduction](#introduction)
-  - [Prerequisites](#prerequisites)
-  - [Installation](#installation)
-    - [Step 1 : Add Helm Repository](#step-1--add-helm-repository)
-    - [Step 2 :  Install to Kubernetes](#step-2---install-to-kubernetes)
-      - [Install Zookeeper](#install-zookeeper)
-      - [Install ClickHouse](#install-clickhouse)
-  - [Access to RadonDB ClickHouse](#access-to-radondb-clickhouse)
-    - [Use pod](#use-pod)
-    - [Use Service](#use-service)
-  - [Persistence](#persistence)
+- [在 Kubernetes 上部署 RadonDB ClickHouse](#在-kubernetes-上部署-radondb-clickhouse)
+  - [简介](#简介)
+  - [部署准备](#部署准备)
+  - [部署步骤](#部署步骤)
+    - [步骤 1 : 添加仓库](#步骤-1--添加仓库)
+    - [步骤 2 : 部署](#步骤-2--部署)
+      - [安装 ZooKeeper](#安装-zookeeper)
+      - [安装 ClickHouse](#安装-clickhouse)
+  - [访问 RadonDB ClickHouse](#访问-radondb-clickhouse)
+    - [通过 Pod](#通过-pod)
+    - [通过 Service](#通过-service)
+  - [持久化](#持久化)
 
-# Deploy Radondb ClickHouse On kubernetes
+# 在 Kubernetes 上部署 RadonDB ClickHouse
 
-## Introduction
+## 简介
 
-RadonDB ClickHouse is an open-source, cloud-native, highly availability cluster solutions based on [ClickHouse](https://clickhouse.tech/).
+RadonDB ClickHouse 是基于 [ClickHouse](https://clickhouse.tech/) 的开源、高可用、云原生集群解决方案。
 
-This tutorial demonstrates how to deploy RadonDB ClickHouse on Kubernetes.
+本教程演示如何使用命令行在 Kubernetes 上部署 RadonDB ClickHouse。
 
-## Prerequisites
+## 部署准备
 
-- You have created a Kubernetes Cluster.
+- 已成功部署 Kubernetes 集群。
 
-## Procedure
+## 部署步骤
 
-### Step 1 : Add Helm Repository
+### 步骤 1 : 添加仓库
 
-Add and update helm repositor.
+添加并更新 helm 仓库。
 
 ```
 helm repo add radonck https://radondb.github.io/clickhouse-cluster-helm/
 helm repo update
 ```
 
-### Step 2 :  Install to Kubernetes
+### 步骤 2 : 部署
 
-#### Install Zookeeper
+#### 安装 ZooKeeper
 
-> Zookeeper store ClickHouse's metadata. So you should install Zookeeper at first.
+> 因 ZooKeeper 存储了 ClickHouse 元数据，故在部署 RadonDB ClickHouse 前，需安装 ZooKeeper 组件。
 
-1. If you see the STATUS is `deployed` that means the Zookeeper has already been installed.
+1. 执行如下命令，安装 ZooKeeper。
+   当回显 `deployed` 状态时，即安装成功。
 
    ```
    $ helm install zookeeper radonck/zookeeper
    $ helm list
    NAME     	NAMESPACE	REVISION	UPDATED                                	STATUS  	CHART          	APP VERSION
    zookeeper	default  	1       	2021-06-02 06:01:32.990928355 +0000 UTC	deployed	zookeeper-0.1.0	3.6    
-
    ```
 
-2. You can get the name of the service, such as `zk-server-zookeeper`.
+2. 执行如下命令，获取服务名称。本示例服务名称为 `zk-server-zookeeper`。
 
    ```
    $ kubectl get service |grep zk-server-zookeeper
    zk-server-zookeeper   ClusterIP   None           <none>        2888/TCP,3888/TCP   9m36s
-   
    ```
 
-#### Install ClickHouse
+#### 安装 ClickHouse
 
-1. You should modify the default value of `zookeeper.external.instances[0].host` to the Zookeeper service name, such as `zk-server-zookeeper`.
+1. 修改 `zookeeper.external.instances[0].host` 参数值为 `zk-server-zookeeper` 。
 
    ```
    $ helm install clickhouse --set zookeeper.external.instances[0].host=zk-server-zookeeper radonck/clickhouse
-
+ 
    $ helm list
    NAME      	NAMESPACE	REVISION	UPDATED                                	STATUS  	CHART           	APP VERSION
    clickhouse	default  	1       	2021-06-02 06:13:10.623409272 +0000 UTC	deployed	clickhouse-0.1.0	21.1       
@@ -75,7 +74,7 @@ helm repo update
 
    ```
 
-2. In default, the chart will create a ClickHouse Cluster with one shard and two replicas.
+2. 执行如下命令，创建 ClickHouse 集群。默认生成一个主节点，两个从节点。
 
    ```
    $ kubectl get all   --selector app.kubernetes.io/instance=clickhouse
@@ -94,13 +93,13 @@ helm repo update
 
    ```
 
-3. For all configurable options and variables, see [values.yaml](../../clickhouse/charts/values.yaml).
+3. 更多配置项和变量配置，请查看 [values.yaml](../../clickhouse/charts/values.yaml)。
 
-## Access to RadonDB ClickHouse
+## 访问 RadonDB ClickHouse
 
-### Use pod
+### 通过 Pod
 
-You can directly connect to ClickHouse Pod with `kubectl`.
+通过 `kubectl` 工具直接访问 ClickHouse Pod ，连接示例如下。
 
 ```
 $ kubectl get pods |grep clickhouse
@@ -112,9 +111,9 @@ clickhouse-s0-r0-0
 
 ```
 
-### Use Service
+### 通过 Service
 
-The Service `spec.type` is `ClusterIP`, so you need to create a client to connect the service.
+由于 Service 的`spec.type` 类型为 `ClusterIP`，故需通过客户端连接服务。
 
 ```
 $ kubectl get service |grep clickhouse
@@ -145,14 +144,14 @@ clickhouse-s0-r0-0
 
 ```
 
-## Persistence
+## 持久化
 
-You can configure a Pod to use a PersistentVolumeClaim(PVC) for storage. 
-In default, PVC mount on the `/var/lib/clickhouse` directory.
+配置 Pod 使用 PersistentVolumeClaim 作为存储，实现 ClickHouse 持久化。
 
-1. You should create a Pod that uses the above PVC for storage.
+默认情况下，每个 Pod 将创建一个 PVC ，并将其挂载到 `/var/lib/clickhouse` 目录。
 
-2. You should create a PVC that is automatically bound to a suitable PersistentVolume(PV). 
+1. 创建一个使用 PVC 作为存储的 Pod。
+2. 创建一个 PVC 自动绑定到合适的 PersistentVolume。
 
-> **Note** 
-> PVC can use different PV, so using the different PV show the different performance.
+> **注意** 
+> 在 PersistentVolumeClaim 中，可以配置不同特性的 PersistentVolume。
