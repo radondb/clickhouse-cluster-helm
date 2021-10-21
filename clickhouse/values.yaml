@@ -25,6 +25,7 @@ clickhouse:
   # create new PersistentVolumeClaims with this storage class:
   defaultStorageClassName: default
   defaultStorageResourceRequest: 1Gi
+  storage: 1Gi
 
   # Shart configuration, see https://clickhouse.tech/docs/en/operations/table_engines/distributed/
   shards:
