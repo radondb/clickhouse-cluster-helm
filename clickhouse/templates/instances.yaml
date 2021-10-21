@@ -137,7 +137,7 @@ spec:
           - ReadWriteOnce
         resources:
           requests:
-            storage: 1Gi
+            storage: {{ $.Values.clickhouse.storage }}
 ---
 apiVersion: v1
 kind: Service
